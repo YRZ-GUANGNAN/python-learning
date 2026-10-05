@@ -80,3 +80,4 @@ else:
     print(f"城市：{live['city']}")
     print(f"天气：{live['weather']}")
     print(f"温度：{live['temperature']}℃")
+    print(f"湿度：{live['humidity']}%")
