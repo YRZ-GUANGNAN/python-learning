@@ -32,14 +32,42 @@ def get_weather(city_name):
         "humidity":live["humidity"]
 
     }
-city = input("请输入城市名：")
+def show_menu():
+    print()
+    print("=== 天气查询工具 ===")
+    print("1. 查询天气")
+    print("2. 查看查询历史")
+    print("3. 清空历史")
+    print("4. 退出")
 
-result = get_weather(city)
 
-if result is None:
-    print("查不到这个城市")
-else:
-    print(f"城市：{result['city']}")
-    print(f"天气：{result['weather']}")
-    print(f"温度：{result['temperature']}℃")
-    print(f"湿度：{result['humidity']}%")
+while True:
+    show_menu()
+    choice = input("请选择：")
+
+    if choice == "1":
+        city = input("请输入城市名：")
+        result = get_weather(city)
+
+        if result is None:
+            print("查不到这个城市")
+        else:
+            print(f"城市：{result['city']}")
+            print(f"天气：{result['weather']}")
+            print(f"温度：{result['temperature']}℃")
+            print(f"湿度：{result['humidity']}%")
+
+    elif choice == "2":
+        print("（功能开发中）")
+
+    elif choice == "3":
+        print("（功能开发中）")
+
+    elif choice == "4":
+        print("再见")
+        break            # ← 空：怎么跳出循环？
+
+    else:
+        print("请输入 1-4 之间的数字")
+
+    input("\n按回车继续...")
