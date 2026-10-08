@@ -4,3 +4,4 @@ __pycache__/
 .idea/
 config.py
 history.json
+chat_history.json
