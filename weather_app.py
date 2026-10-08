@@ -1,7 +1,26 @@
+import json
+import datetime
 import requests
 from config import api_key
 
+HISTORY_FILE = "history.json"
 
+import requests
+from config import api_key
+
+def load_history():
+    """读取历史记录。文件不存在时返回空列表。"""
+    try:
+        with open(HISTORY_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except FileNotFoundError:
+        return []
+
+
+def save_history(history):
+    """把历史记录写进文件。"""
+    with open(HISTORY_FILE, "w", encoding="utf-8") as f:
+        json.dump(history, f, ensure_ascii=False)
 
 def get_weather(city_name):
     """查询城市天气。成功返回数据，失败返回 None。"""
@@ -56,6 +75,13 @@ while True:
             print(f"天气：{result['weather']}")
             print(f"温度：{result['temperature']}℃")
             print(f"湿度：{result['humidity']}%")
+
+            result["time"] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
+
+            # ↓ 下面三行你写：读出历史 → 加一条 → 写回去
+            hisstroy= load_history()
+            hisstroy.append(result)
+            save_history(hisstroy)
 
     elif choice == "2":
         print("（功能开发中）")
