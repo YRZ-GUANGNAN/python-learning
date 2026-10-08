@@ -5,8 +5,8 @@ from config import api_key
 
 HISTORY_FILE = "history.json"
 
-import requests
-from config import api_key
+
+# ══════════════ 工具函数 ══════════════
 
 def load_history():
     """读取历史记录。文件不存在时返回空列表。"""
@@ -22,12 +22,11 @@ def save_history(history):
     with open(HISTORY_FILE, "w", encoding="utf-8") as f:
         json.dump(history, f, ensure_ascii=False)
 
+
 def get_weather(city_name):
     """查询城市天气。成功返回数据，失败返回 None。"""
-    # —— 第一步：城市名 -- adcode ——
     geo_url = f"https://restapi.amap.com/v3/geocode/geo?key={api_key}&address={city_name}"
-
-    geo_response = requests.get(geo_url,timeout=5)
+    geo_response = requests.get(geo_url, timeout=5)
     geo_data = geo_response.json()
 
     if geo_data["status"] != "1" or geo_data["count"] == "0":
@@ -35,22 +34,20 @@ def get_weather(city_name):
 
     adcode = geo_data["geocodes"][0]["adcode"]
 
-    # ———— 第二步；adcode ———— 天气 ————
-    weather_url =f"https://restapi.amap.com/v3/weather/weatherInfo?key={api_key}&city={adcode}"
-
-    weather_response =requests.get(weather_url,timeout=5)
-
-    weather_data =weather_response.json()
+    weather_url = f"https://restapi.amap.com/v3/weather/weatherInfo?key={api_key}&city={adcode}"
+    weather_response = requests.get(weather_url, timeout=5)
+    weather_data = weather_response.json()
 
     live = weather_data["lives"][0]
 
-    return{
-        "city":live["city"],
+    return {
+        "city": live["city"],
         "weather": live["weather"],
-        "temperature":live["temperature"],
-        "humidity":live["humidity"]
-
+        "temperature": live["temperature"],
+        "humidity": live["humidity"],
     }
+
+
 def show_menu():
     print()
     print("=== 天气查询工具 ===")
@@ -59,6 +56,19 @@ def show_menu():
     print("3. 清空历史")
     print("4. 退出")
 
+
+def show_history():
+    history = load_history()
+
+    if len(history) == 0:
+        print("还没有查询记录")
+    else:
+        print("\n查询历史：")
+        for record in history:
+            print(f"{record['time']}  {record['city']}  {record['weather']}  {record['temperature']}℃")
+
+
+# ══════════════ 主程序 ══════════════
 
 while True:
     show_menu()
@@ -78,20 +88,20 @@ while True:
 
             result["time"] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
 
-            # ↓ 下面三行你写：读出历史 → 加一条 → 写回去
-            hisstroy= load_history()
-            hisstroy.append(result)
-            save_history(hisstroy)
+            history = load_history()
+            history.append(result)
+            save_history(history)
 
     elif choice == "2":
-        print("（功能开发中）")
+        show_history()
 
     elif choice == "3":
-        print("（功能开发中）")
+        save_history([])
+        print("历史已清空")
 
     elif choice == "4":
         print("再见")
-        break            # ← 空：怎么跳出循环？
+        break
 
     else:
         print("请输入 1-4 之间的数字")
