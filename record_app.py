@@ -43,3 +43,5 @@ for r in records:
     print(r)
     total += r.amount
 print(f"总计 {total:.0f} 元")
+
+# 吃饭吃饭吃饭吃饭
