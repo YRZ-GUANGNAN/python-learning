@@ -5,3 +5,4 @@ __pycache__/
 config.py
 history.json
 chat_history.json
+records.json
