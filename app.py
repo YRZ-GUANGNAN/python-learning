@@ -1,9 +1,22 @@
-from fastapi import FastAPI, HTTPException # 引入了 HTTPException 用于报错
+from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-import json
+import pymysql
+from config import db_password
 
-FILE = "records.json"
 app = FastAPI()
+
+
+
+def get_conn():
+    return pymysql.connect(
+        host="localhost",
+        port=3306,
+        user="learn",
+        password=db_password,
+        database="learn_db",
+        cursorclass=pymysql.cursors.DictCursor,
+    )
+
 
 
 class RecordIn(BaseModel):
@@ -11,22 +24,6 @@ class RecordIn(BaseModel):
     amount: float
 
 
-def load_records():
-    try:
-        with open(FILE, "r", encoding="utf-8") as f:
-            return json.load(f)
-    except FileNotFoundError:
-        return []
-
-
-def save_records(records):
-    with open(FILE, "w", encoding="utf-8") as f:
-        json.dump(records, f, ensure_ascii=False, indent=2)
-
-
-@app.get("/records")
-def list_records():
-    return load_records()
 
 
 @app.get("/")
@@ -39,40 +36,57 @@ def hello(name: str):
     return {"message": f"你好，{name}"}
 
 
+
+@app.get("/records")
+def list_records():
+    conn = get_conn()
+    cursor = conn.cursor()
+    cursor.execute("SELECT id, item, amount, created_at FROM records ORDER BY id")
+    rows = cursor.fetchall()
+    conn.close()
+    return rows
+
+
+
 @app.post("/records")
 def add_record(record: RecordIn):
-    records = load_records()
-    records.append({"item": record.item, "amount": record.amount})
-    save_records(records)
-    return {"ok": True, "count": len(records)}
+    conn = get_conn()
+    cursor = conn.cursor()
+
+    sql = "INSERT INTO records (item, amount) VALUES (%s, %s)"
+    cursor.execute(sql, (record.item, record.amount))
+    conn.commit()
+    new_id = cursor.lastrowid
+    conn.close()
+
+    return {"ok": True, "id": new_id}
 
 
 
 @app.get("/summary")
 def summary():
-    records = load_records()
+    conn = get_conn()
+    cursor = conn.cursor()
 
-    count = len(records)
-
-    total = sum(r["amount"] for r in records)
-
-    return {"count": count, "total": total}
-
-
-
-@app.delete("/records/{index}")
-def delete_record(index: int):
-    records = load_records()
+    cursor.execute("SELECT COUNT(*) AS count, IFNULL(SUM(amount), 0) AS total FROM records")
+    result = cursor.fetchone()
+    conn.close()
+    return result
 
 
-    if index < 0 or index >= len(records):
 
+@app.delete("/records/{record_id}")
+def delete_record(record_id: int):
+    conn = get_conn()
+    cursor = conn.cursor()
+
+
+    cursor.execute("DELETE FROM records WHERE id = %s", (record_id,))
+    conn.commit()
+
+    if cursor.rowcount == 0:
+        conn.close()
         raise HTTPException(status_code=404, detail="该记录不存在")
 
-
-    deleted_record = records.pop(index)
-
-
-    save_records(records)
-
-    return {"ok": True, "deleted": deleted_record, "count": len(records)}
+    conn.close()
+    return {"ok": True, "message": f"成功删除 id 为 {record_id} 的记录"}
