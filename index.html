@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>记账本</title>
+  <style>
+    body { font-family: sans-serif; max-width: 600px; margin: 40px auto; }
+    input { padding: 6px; margin-right: 8px; }
+    button { padding: 6px 12px; cursor: pointer; }
+    li { margin: 8px 0; }
+
+    /* 稍微美化一下删除按钮，让它看起来不那么突兀 */
+    .delete-btn { background-color: #ff4d4f; color: white; border: none; border-radius: 4px; margin-left: 12px; }
+    .delete-btn:hover { background-color: #ff7875; }
+  </style>
+</head>
+<body>
+  <h1>记账本</h1>
+
+  <div>
+    <input id="item" placeholder="项目">
+    <input id="amount" type="number" placeholder="金额">
+    <button onclick="addRecord()">记一笔</button>
+  </div>
+
+  <ul id="list"></ul>
+  <p id="summary"></p>
+
+  <script>
+    // 1. 加载记录并渲染
+    async function load() {
+      const res = await fetch('/records');
+      const records = await res.json();
+
+      const list = document.getElementById('list');
+      list.innerHTML = ''; // 清空列表，防止重复累加
+
+      for (const r of records) {
+        const li = document.createElement('li');
+        li.textContent = `${r.item} ${r.amount} 元`;
+
+        // === 添加删除按钮 ===
+        const btn = document.createElement('button');
+        btn.textContent = '删除';
+        btn.className = 'delete-btn'; // 用 CSS 控制样式
+        btn.onclick = () => removeRecord(r.id); // 点击时调用删除函数，传入该记录的 id
+
+        li.appendChild(btn); // 把按钮挂到 li 里面
+        list.appendChild(li); // 把 li 挂到 ul 里面
+      }
+
+      // 加载汇总信息
+      const s = await (await fetch('/summary')).json();
+      document.getElementById('summary').textContent =
+        `共 ${s.count} 笔，总计 ${s.total} 元`;
+    }
+
+    // 2. 添加记录
+    async function addRecord() {
+      const item = document.getElementById('item').value;
+      const amount = Number(document.getElementById('amount').value);
+
+      await fetch('/records', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ item: item, amount: amount })
+      });
+
+      // 清空输入框
+      document.getElementById('item').value = '';
+      document.getElementById('amount').value = '';
+
+      load(); // 重新加载列表
+    }
+
+    // 3. 删除记录（新增的函数）
+    async function removeRecord(id) {
+      // 向后端发送 DELETE 请求
+      await fetch('/records/' + id, { method: 'DELETE' });
+
+      // 删除成功后，重新加载一遍数据，页面就会刷新
+      load();
+    }
+
+    // 页面初次打开时，加载数据
+    load();
+  </script>
+</body>
+</html>
