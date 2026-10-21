@@ -1,5 +1,5 @@
 from fastapi.responses import FileResponse
-from fastapi import FastAPI, HTTPException, Header, Depends
+from fastapi import FastAPI, HTTPException, Header, Depends, Query
 from pydantic import BaseModel
 import pymysql
 from config import db_password
@@ -57,15 +57,37 @@ def hello(name: str):
 # ==================== 以下接口加了保护 ====================
 
 @app.get("/records")
-def list_records(user: dict = Depends(current_user)):  # <--- 加了依赖
+def list_records(
+    page: int = Query(1, ge=1),
+    size: int = Query(10, ge=1, le=100),
+    user: dict = Depends(current_user),
+):
+    offset = (page - 1) * size
+
     conn = get_conn()
     try:
         cursor = conn.cursor()
+
         cursor.execute(
-            "SELECT id, item, amount, created_at FROM records WHERE user_id = %s ORDER BY id",
+            "SELECT id, item, amount, created_at FROM records "
+            "WHERE user_id = %s ORDER BY id DESC LIMIT %s OFFSET %s",
+            (user["user_id"], size, offset),
+        )
+        items = cursor.fetchall()
+
+        cursor.execute(
+            "SELECT COUNT(*) AS c FROM records WHERE user_id = %s",
             (user["user_id"],),
         )
-        return cursor.fetchall()
+        total = cursor.fetchone()["c"]
+
+        return {
+            "items": items,
+            "total": total,
+            "page": page,
+            "size": size,
+            "pages": (total + size - 1) // size,
+        }
     finally:
         conn.close()
 
@@ -173,5 +195,22 @@ def login(user: UserIn):
         token = jwt.encode(payload, JWT_SECRET, algorithm="HS256")
 
         return {"token": token, "username": row["username"]}
+    finally:
+        conn.close()
+@app.put("/records/{record_id}")
+def update_record(record_id: int, record: RecordIn, user: dict = Depends(current_user)):
+    conn = get_conn()
+    try:
+        cursor = conn.cursor()
+        cursor.execute(
+            "UPDATE records SET item = %s, amount = %s WHERE id = %s AND user_id = %s",
+            (record.item, record.amount, record_id, user["user_id"]),
+        )
+        conn.commit()
+
+        if cursor.rowcount == 0:
+            raise HTTPException(status_code=404, detail="该记录不存在或不属于你")
+
+        return {"ok": True, "id": record_id}
     finally:
         conn.close()

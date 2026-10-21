@@ -9,19 +9,18 @@
     button { padding: 6px 12px; cursor: pointer; margin-left: 4px; }
     li { margin: 8px 0; }
     #topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+    #pager { display: flex; align-items: center; gap: 12px; margin-top: 16px; }
   </style>
 </head>
 <body>
   <h1>记账本</h1>
 
-  <!-- 登录区 -->
   <div id="login-box">
     <input id="username" placeholder="用户名">
     <input id="password" type="password" placeholder="密码">
     <button onclick="login()">登录</button>
   </div>
 
-  <!-- 主界面 -->
   <div id="app" style="display:none">
     <div id="topbar">
       <span id="who"></span>
@@ -35,11 +34,20 @@
     </div>
 
     <ul id="list"></ul>
+
+    <div id="pager">
+      <button id="prev" onclick="changePage(-1)">上一页</button>
+      <span id="pageinfo"></span>
+      <button id="next" onclick="changePage(1)">下一页</button>
+    </div>
+
     <p id="summary"></p>
   </div>
 
   <script>
+    const PAGE_SIZE = 5;
     let token = localStorage.getItem('token') || '';
+    let currentPage = 1;
 
     function authHeaders() {
       return { 'Authorization': 'Bearer ' + token };
@@ -76,11 +84,15 @@
     function showApp() {
       document.getElementById('login-box').style.display = 'none';
       document.getElementById('app').style.display = 'block';
+      currentPage = 1;
       load();
     }
 
     async function load() {
-      const res = await fetch('/records', { headers: authHeaders() });
+      const res = await fetch(
+        `/records?page=${currentPage}&size=${PAGE_SIZE}`,
+        { headers: authHeaders() }
+      );
 
       if (res.status === 401) {
         localStorage.removeItem('token');
@@ -90,11 +102,13 @@
         return;
       }
 
-      const records = await res.json();
+      const data = await res.json();
+      const pages = data.pages || 1;
+
       const list = document.getElementById('list');
       list.innerHTML = '';
 
-      for (const r of records) {
+      for (const r of data.items) {
         const li = document.createElement('li');
         li.textContent = `${r.item} ${r.amount} 元`;
 
@@ -106,9 +120,19 @@
         list.appendChild(li);
       }
 
+      document.getElementById('pageinfo').textContent =
+        `第 ${data.page} / ${pages} 页（共 ${data.total} 条）`;
+      document.getElementById('prev').disabled = currentPage <= 1;
+      document.getElementById('next').disabled = currentPage >= pages;
+
       const s = await (await fetch('/summary', { headers: authHeaders() })).json();
       document.getElementById('summary').textContent =
         `共 ${s.count} 笔，总计 ${s.total} 元`;
+    }
+
+    function changePage(delta) {
+      currentPage += delta;
+      load();
     }
 
     async function addRecord() {
@@ -123,6 +147,7 @@
 
       document.getElementById('item').value = '';
       document.getElementById('amount').value = '';
+      currentPage = 1;
       load();
     }
 
