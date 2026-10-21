@@ -61,8 +61,10 @@ def list_records(user: dict = Depends(current_user)):  # <--- 加了依赖
     conn = get_conn()
     try:
         cursor = conn.cursor()
-        # 注意：如果以后你想让每个人只能看自己的记录，这里需要加 WHERE user_id = %s
-        cursor.execute("SELECT id, item, amount, created_at FROM records ORDER BY id")
+        cursor.execute(
+            "SELECT id, item, amount, created_at FROM records WHERE user_id = %s ORDER BY id",
+            (user["user_id"],),
+        )
         return cursor.fetchall()
     finally:
         conn.close()
@@ -73,10 +75,9 @@ def add_record(record: RecordIn, user: dict = Depends(current_user)):  # <--- �
     conn = get_conn()
     try:
         cursor = conn.cursor()
-        # 可以获取当前登录用户的 ID：user["user_id"]
         cursor.execute(
-            "INSERT INTO records (item, amount) VALUES (%s, %s)",
-            (record.item, record.amount),
+            "INSERT INTO records (item, amount, user_id) VALUES (%s, %s, %s)",
+            (record.item, record.amount, user["user_id"]),
         )
         conn.commit()
         return {"ok": True, "id": cursor.lastrowid}
@@ -90,7 +91,9 @@ def summary(user: dict = Depends(current_user)):  # <--- 加了依赖
     try:
         cursor = conn.cursor()
         cursor.execute(
-            "SELECT COUNT(*) AS count, IFNULL(SUM(amount), 0) AS total FROM records"
+            "SELECT COUNT(*) AS count, IFNULL(SUM(amount), 0) AS total "
+            "FROM records WHERE user_id = %s",
+            (user["user_id"],),
         )
         return cursor.fetchone()
     finally:
@@ -102,7 +105,10 @@ def delete_record(record_id: int, user: dict = Depends(current_user)):  # <--- �
     conn = get_conn()
     try:
         cursor = conn.cursor()
-        cursor.execute("DELETE FROM records WHERE id = %s", (record_id,))
+        cursor.execute(
+            "DELETE FROM records WHERE id = %s AND user_id = %s",
+            (record_id, user["user_id"]),
+        )
         conn.commit()
 
         if cursor.rowcount == 0:
