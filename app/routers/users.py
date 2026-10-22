@@ -1,6 +1,7 @@
+import logging
+
 import bcrypt
 import datetime
-
 import jwt
 from fastapi import APIRouter, HTTPException
 
@@ -9,6 +10,7 @@ from app.db import db_conn
 from app.schemas import UserIn
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
 @router.post("/register")
@@ -16,6 +18,7 @@ def register(user: UserIn):
     with db_conn() as conn, conn.cursor() as cursor:
         cursor.execute("SELECT id FROM users WHERE username = %s", (user.username,))
         if cursor.fetchone():
+            logger.warning("注册失败（用户名已存在）: %s", user.username)
             raise HTTPException(status_code=400, detail="用户名已存在")
 
         password_hash = bcrypt.hashpw(
@@ -30,6 +33,7 @@ def register(user: UserIn):
         conn.commit()
         new_id = cursor.lastrowid
 
+    logger.info("注册成功: %s (id=%s)", user.username, new_id)
     return {"ok": True, "id": new_id}
 
 
@@ -43,6 +47,7 @@ def login(user: UserIn):
         row = cursor.fetchone()
 
     if not row or not bcrypt.checkpw(user.password.encode(), row["password_hash"].encode()):
+        logger.warning("登录失败: %s", user.username)
         raise HTTPException(status_code=401, detail="用户名或密码错误")
 
     payload = {
@@ -52,4 +57,5 @@ def login(user: UserIn):
     }
     token = jwt.encode(payload, JWT_SECRET, algorithm="HS256")
 
+    logger.info("登录成功: %s", user.username)
     return {"token": token, "username": row["username"]}

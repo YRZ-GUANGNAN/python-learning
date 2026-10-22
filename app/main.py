@@ -1,7 +1,17 @@
+import logging
+
 from fastapi.responses import FileResponse
 from fastapi import FastAPI
 
 from app.routers import records, users
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
+
+logger = logging.getLogger(__name__)
 
 app = FastAPI()
 
@@ -22,3 +32,6 @@ def root():
 @app.get("/hello/{name}")
 def hello(name: str):
     return {"message": f"你好，{name}"}
+
+
+logger.info("记账服务已启动")
