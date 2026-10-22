@@ -1,8 +1,8 @@
 import uuid
 import pytest
-from app import db_conn
+from app.db import db_conn
 from fastapi.testclient import TestClient
-from app import app
+from app.main import app
 
 client = TestClient(app)
 
