@@ -1,6 +1,6 @@
 import uuid
 import pytest
-from app import get_conn
+from app import db_conn
 from fastapi.testclient import TestClient
 from app import app
 
@@ -50,8 +50,7 @@ def temp_user():
     yield {"username": username, "token": token}
 
     # 清理：删掉这个用户的记录和账号
-    conn = get_conn()
-    try:
+    with db_conn() as conn:
         cursor = conn.cursor()
         cursor.execute(
             "DELETE FROM records WHERE user_id = (SELECT id FROM users WHERE username = %s)",
@@ -59,8 +58,6 @@ def temp_user():
         )
         cursor.execute("DELETE FROM users WHERE username = %s", (username,))
         conn.commit()
-    finally:
-        conn.close()
 
 
 def test_full_flow(temp_user):
@@ -68,7 +65,8 @@ def test_full_flow(temp_user):
 
     # ① 新用户一开始没有记录
     res = client.get("/records", headers=headers)
-    assert res.json() == []
+    assert res.json()["items"] == []
+    assert res.json()["total"] == 0
 
     # ② 记一笔
     res = client.post("/records", json={"item": "测试项目", "amount": 12.5}, headers=headers)
@@ -77,8 +75,10 @@ def test_full_flow(temp_user):
 
     # ③ 能查到
     res = client.get("/records", headers=headers)
-    assert len(res.json()) == 1
-    assert res.json()[0]["item"] == "测试项目"
+    body = res.json()
+    assert body["total"] == 1
+    assert len(body["items"]) == 1
+    assert body["items"][0]["item"] == "测试项目"
 
     # ④ 统计正确
     res = client.get("/summary", headers=headers)
@@ -91,4 +91,5 @@ def test_full_flow(temp_user):
 
     # ⑥ 删完就没了
     res = client.get("/records", headers=headers)
-    assert res.json() == []
+    assert res.json()["items"] == []
+    assert res.json()["total"] == 0
